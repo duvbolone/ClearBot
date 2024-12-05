@@ -11,6 +11,7 @@ import discord
 import requests
 from discord.ext.pages import PaginatorButton
 
+DB = {"main": os.path.join("database","main.db"), "va": os.path.join("database","va.db")}
 
 class UserObject(discord.Object):
     def __init__(self) -> None:
@@ -25,7 +26,7 @@ class VA:
     @classmethod
     async def get_users(cls, get_type: Literal["id", "full"] = "id"):
         out = []
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute("SELECT * FROM users")
             out = await cur.fetchall()
         if (get_type == "full") or (get_type is None):
@@ -37,7 +38,7 @@ class VA:
 
     @classmethod
     async def has_flights(cls, user: discord.User | discord.Member):
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute(
                 "SELECT id FROM flights WHERE user_id=?", (str(user.id),)
             )
@@ -52,7 +53,7 @@ class VA:
     async def generate_flight_number(
         cls, aircraft_icao, origin_icao, destination_icao, prefix="CR"
     ):
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute("SELECT icao FROM aircraft")
             aircraft = await cur.fetchall()
             aircraft = [aircraft[0] for aircraft in aircraft]
@@ -84,7 +85,7 @@ class VA:
         aircraft_types = ["Airliner", "GA", "All"]
         if aircraft_type not in aircraft_types:
             aircraft_type = "All"
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             if aircraft_type != "All":
                 cur = await db.execute(
                     "SELECT * FROM aircraft WHERE type=?",
@@ -103,7 +104,7 @@ class VA:
 
     @classmethod
     def get_flights_from_user(cls, user: discord.Member | discord.User) -> list[tuple]:
-        db = sqlite3.connect("va.db")
+        db = sqlite3.connect(DB["va"])
         cur = db.execute("SELECT * FROM flights WHERE user_id=?", (str(user.id),))
         flights = cur.fetchall()
         return flights
@@ -113,7 +114,7 @@ class ClearBot(discord.Bot):
     def __init__(self, *args, **kwargs) -> None:
         self.color = self.embed_color
         self.dev_mode = os.path.exists(".dev")
-
+        
         self.start_time = datetime.datetime.utcnow()
         self.cog_list = [
             x.split(".")[0] for x in os.listdir("cogs") if x.endswith(".py")
@@ -139,7 +140,7 @@ class ClearBot(discord.Bot):
             if self.airports[ap].get("icao")
         ]
 
-        con = sqlite3.connect("main.db")
+        con = sqlite3.connect(DB["main"])
         # 0 = normal
         # 1 = halloween
         # 2 = Christmas
@@ -354,7 +355,7 @@ https://forums.x-plane.org/index.php?/files/file/76763-stableapproach-flight-dat
         if not self.is_ready():
             return {"guild_success": False, "failed_roles": list(self.roles.items())}
 
-        async with aiosqlite.connect("main.db") as db:
+        async with aiosqlite.connect(DB["main"]) as db:
             await db.execute(
                 "UPDATE config SET value = ? WHERE key = 'theme'", (theme,)
             )
@@ -517,7 +518,7 @@ Head over to {fbo.mention} to file your first flight!
                 "is_trial": True,
                 "is_ban": False,
             }
-            async with aiosqlite.connect("va.db") as db:
+            async with aiosqlite.connect(DB["va"]) as db:
                 await db.execute(
                     "INSERT INTO users (user_id, sign_time, is_trial, is_ban) VALUES (:user_id, :sign_time, :is_trial, :is_ban)",
                     user,

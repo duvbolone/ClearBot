@@ -1,7 +1,5 @@
 import io
 import os
-from types import NoneType
-from typing import Literal
 import discord
 import re
 import aiosqlite
@@ -10,7 +8,8 @@ from numerize import numerize as n
 from PIL import Image, ImageDraw, ImageFont
 from discord import option
 from discord.ext import commands
-from main import ClearBot
+
+from bot import ClearBot, DB
 
 
 class LevelingCommands(discord.Cog):
@@ -29,7 +28,7 @@ class LevelingCommands(discord.Cog):
 
     async def generate_image(self, user: discord.User | discord.Member) -> tuple[int, discord.File | None]:
         fail = (False, None)
-        async with aiosqlite.connect("main.db") as db:
+        async with aiosqlite.connect(DB["main"]) as db:
             usrdata = await db.execute(
                 "SELECT * FROM leveling WHERE author_id=?", (str(user.id),)
             )
@@ -214,7 +213,7 @@ class LevelingCommands(discord.Cog):
         output = []
         nameoutput = []
         img = Image.open(f"ui/images/leaderboard/{self.bot.theme}/lb.png")
-        async with aiosqlite.connect("main.db") as db:
+        async with aiosqlite.connect(DB["main"]) as db:
             sel = await db.execute("SELECT * FROM leveling")
             fetsel = await sel.fetchall()
             for usr in fetsel:

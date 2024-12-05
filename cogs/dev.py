@@ -12,7 +12,8 @@ from discord import option
 from discord.ext import commands
 from discord.ext.pages import Page, Paginator
 
-from main import ClearBot, roles
+from main import roles
+from bot import ClearBot, DB
 
 
 async def getattrs(ctx):
@@ -255,7 +256,7 @@ Reloaded cogs:
         await ctx.respond(embed=embed)
 
     async def get_datarefs(self, ctx: discord.AutocompleteContext):
-        async with aiosqlite.connect("main.db") as db:
+        async with aiosqlite.connect(DB["main"]) as db:
             cursor = await db.execute("SELECT path FROM datarefs")
             rows = await cursor.fetchall()
             datarefList1 = [row[0] for row in rows]
@@ -269,7 +270,7 @@ Reloaded cogs:
     async def get_custom_datarefs(self, ctx: discord.AutocompleteContext):
         global customDatarefList
         customDatarefList = []
-        async with aiosqlite.connect("main.db") as db:
+        async with aiosqlite.connect(DB["main"]) as db:
             cursor = await db.execute("SELECT path FROM datarefs")
             rows = await cursor.fetchall()
             customDatarefList = [row[0] for row in rows]
@@ -520,7 +521,7 @@ Reloaded cogs:
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def dreflist(self, ctx: discord.ApplicationContext):
         await ctx.defer()
-        async with aiosqlite.connect("main.db") as db:
+        async with aiosqlite.connect(DB["main"]) as db:
             cursor = await db.execute("SELECT path FROM datarefs")
             rows = await cursor.fetchall()
             drefs = [row[0] for row in rows]
@@ -566,7 +567,7 @@ Reloaded cogs:
         await ctx.defer()
         if dataref in datarefList:
             if dataref.startswith("ClearFly"):
-                async with aiosqlite.connect("main.db") as db:
+                async with aiosqlite.connect(DB["main"]) as db:
                     dref = await db.execute(
                         "SELECT * FROM datarefs WHERE path = ?", (dataref,)
                     )
@@ -647,7 +648,7 @@ Description :
         if path.startswith("ClearFly"):
             await ctx.defer()
 
-            async with aiosqlite.connect("main.db") as db:
+            async with aiosqlite.connect(DB["main"]) as db:
                 newdref = {
                     "path": path,
                     "type": dataref_type,
@@ -715,7 +716,7 @@ Description :
     ):
         if dataref in customDatarefList:
             await ctx.defer()
-            async with aiosqlite.connect("main.db") as db:
+            async with aiosqlite.connect(DB["main"]) as db:
                 old_dref = await db.execute(
                     "SELECT * FROM datarefs WHERE path = ?", (dataref,)
                 )
@@ -731,7 +732,7 @@ Description :
                 "description": description,
                 "old_path": dataref,
             }
-            async with aiosqlite.connect("main.db") as db:
+            async with aiosqlite.connect(DB["main"]) as db:
                 cursor = await db.cursor()
                 await cursor.execute(
                     "UPDATE datarefs SET path=:path, type=:type, unit=:unit, description=:description WHERE path=:old_path",
@@ -765,7 +766,7 @@ Description :
     async def drefdel(self, ctx: discord.ApplicationContext, dataref):
         await ctx.defer()
         if dataref in customDatarefList:
-            async with aiosqlite.connect("main.db") as db:
+            async with aiosqlite.connect(DB["main"]) as db:
                 cursor = await db.cursor()
                 await cursor.execute("DELETE FROM datarefs WHERE path=?", (dataref,))
                 await db.commit()

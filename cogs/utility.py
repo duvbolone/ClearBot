@@ -10,8 +10,7 @@ import math
 from discord import option
 from discord.ext import commands
 import aiosqlite
-from main import ClearBot
-
+from bot import ClearBot, DB
 
 timezones = pytz.all_timezones
 
@@ -50,7 +49,7 @@ class PollTypeYesNo(discord.ui.Modal):
             "question": self.children[0].value,
             "type": "yn",
         }
-        async with aiosqlite.connect("main.db") as db:
+        async with aiosqlite.connect(DB["main"]) as db:
             cur = await db.cursor()
             await cur.execute(
                 "INSERT INTO poll (poll_id, author, question, type) VALUES (:poll_id, :author, :question, :type)",
@@ -119,7 +118,7 @@ class PollTypeMChoice(discord.ui.Modal):
             "question": self.children[0].value,
             "type": str(self.choices),
         }
-        async with aiosqlite.connect("main.db") as db:
+        async with aiosqlite.connect(DB["main"]) as db:
             cur = await db.cursor()
             await cur.execute(
                 "INSERT INTO poll (poll_id, author, question, type) VALUES (:poll_id, :author, :question, :type)",
@@ -742,7 +741,7 @@ class UtilityCommands(discord.Cog):
             )
             await ctx.respond(embed=embed)
         else:
-            async with aiosqlite.connect("main.db") as db:
+            async with aiosqlite.connect(DB["main"]) as db:
                 curs = await db.cursor()
                 poll = await curs.execute(
                     "SELECT * FROM poll WHERE poll_id=?", (poll_id,)
@@ -786,7 +785,7 @@ Total votes: **{total_count}**
                     icon_url=author.display_avatar, name=f"Poll by {author.name}"
                 )
                 await poll_msg.edit(embed=embed)
-                async with aiosqlite.connect("main.db") as db:
+                async with aiosqlite.connect(DB["main"]) as db:
                     cursor = await db.cursor()
                     await cursor.execute("DELETE FROM poll WHERE poll_id=?", (poll_id,))
                     await db.commit()
@@ -1001,7 +1000,7 @@ Second: **{second}**
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def server_stats(self, ctx: discord.ApplicationContext):
         join_stats = None
-        async with aiosqlite.connect("main.db") as db:
+        async with aiosqlite.connect(DB["main"]) as db:
             cur = await db.execute("SELECT * FROM stats WHERE name='join'")
             join_stats = await cur.fetchone()
             if not join_stats:

@@ -11,8 +11,7 @@ import time
 import datetime
 from http.client import RemoteDisconnected
 from discord.ext import commands, tasks
-from main import ClearBot
-
+from bot import ClearBot, DB
 
 class DeleteMsgView(discord.ui.View):
     def __init__(self, bot: ClearBot, auth):
@@ -133,7 +132,7 @@ class Listeners(discord.Cog):
                 feed = dict(blog_feed.entries[0])
             except:
                 return
-            async with aiosqlite.connect("main.db") as db:
+            async with aiosqlite.connect(DB["main"]) as db:
                 curs = await db.cursor()
                 lastIDs = await curs.execute(f"SELECT lastID FROM {table}")
                 lastIDs = await lastIDs.fetchall()
@@ -144,7 +143,7 @@ class Listeners(discord.Cog):
             if feed.get("id") in lastIDs:
                 return
             else:
-                async with aiosqlite.connect("main.db") as db:
+                async with aiosqlite.connect(DB["main"]) as db:
                     cursor = await db.cursor()
                     if lastIDs:
                         await cursor.execute(
@@ -200,7 +199,7 @@ class Listeners(discord.Cog):
                 feed = dict(blog_feed.entries[0])
             except:
                 return
-            async with aiosqlite.connect("main.db") as db:
+            async with aiosqlite.connect(DB["main"]) as db:
                 curs = await db.cursor()
                 lastIDs = await curs.execute(f"SELECT lastID FROM {table}")
                 lastIDs = await lastIDs.fetchall()
@@ -211,7 +210,7 @@ class Listeners(discord.Cog):
             if feed.get("id") in lastIDs:
                 return
             else:
-                async with aiosqlite.connect("main.db") as db:
+                async with aiosqlite.connect(DB["main"]) as db:
                     cursor = await db.cursor()
                     if lastIDs:
                         await cursor.execute(
@@ -262,7 +261,7 @@ class Listeners(discord.Cog):
                 feed = dict(blog_feed.entries[0])
             except:
                 return
-            async with aiosqlite.connect("main.db") as db:
+            async with aiosqlite.connect(DB["main"]) as db:
                 curs = await db.cursor()
                 lastIDs = await curs.execute(f"SELECT lastID FROM {table}")
                 lastIDs = await lastIDs.fetchall()
@@ -273,7 +272,7 @@ class Listeners(discord.Cog):
             if feed.get("id") in lastIDs:
                 return
             else:
-                async with aiosqlite.connect("main.db") as db:
+                async with aiosqlite.connect(DB["main"]) as db:
                     cursor = await db.cursor()
                     if lastIDs:
                         await cursor.execute(
@@ -381,13 +380,13 @@ class Listeners(discord.Cog):
         if message.author.bot:
             return
         else:
-            async with aiosqlite.connect("main.db") as db:
+            async with aiosqlite.connect(DB["main"]) as db:
                 sel = await db.execute("SELECT author_id FROM leveling")
                 rows = await sel.fetchall()
                 usrs = [row[0] for row in rows]
             if str(message.author.id) in usrs:
                 usrdata = None
-                async with aiosqlite.connect("main.db") as db:
+                async with aiosqlite.connect(DB["main"]) as db:
                     curs = await db.cursor()
                     usrdata = await curs.execute(
                         "SELECT * FROM leveling WHERE author_id=?",
@@ -403,7 +402,7 @@ class Listeners(discord.Cog):
                 if (now - int(last)) < 5:
                     return
                 else:
-                    async with aiosqlite.connect("main.db") as db:
+                    async with aiosqlite.connect(DB["main"]) as db:
                         cursor = await db.cursor()
                         await cursor.execute(
                             "UPDATE leveling SET last_msg=? WHERE author_id=?",
@@ -424,7 +423,7 @@ class Listeners(discord.Cog):
                     nowlvlnom = int(belvlnom) + 10
                 lvl = usrdata[2]
                 denom = usrdata[4]
-                async with aiosqlite.connect("main.db") as db:
+                async with aiosqlite.connect(DB["main"]) as db:
                     cursor = await db.cursor()
                     await cursor.execute(
                         "UPDATE leveling SET nom=? WHERE author_id=?",
@@ -432,7 +431,7 @@ class Listeners(discord.Cog):
                     )
                     await db.commit()
                 if int(nowlvlnom) >= int(denom):
-                    async with aiosqlite.connect("main.db") as db:
+                    async with aiosqlite.connect(DB["main"]) as db:
                         cursor = await db.cursor()
                         await cursor.execute(
                             "UPDATE leveling SET nom=0, level=?, denom=? WHERE author_id=?",
@@ -445,7 +444,7 @@ class Listeners(discord.Cog):
                         await db.commit()
                     if int(lvl) == 0:
                         lvl = 1
-                    async with aiosqlite.connect("main.db") as db:
+                    async with aiosqlite.connect(DB["main"]) as db:
                         curs = await db.cursor()
                         usrdata = await curs.execute(
                             "SELECT * FROM leveling WHERE author_id=?",
@@ -467,7 +466,7 @@ class Listeners(discord.Cog):
                     "denom": 25,
                     "last_msg": round(time.time()),
                 }
-                async with aiosqlite.connect("main.db") as db:
+                async with aiosqlite.connect(DB["main"]) as db:
                     cur = await db.cursor()
                     await cur.execute(
                         "INSERT INTO leveling (author_id, level, nom, denom, last_msg) VALUES (:author_id, :level, :nom, :denom, :last_msg)",
@@ -480,7 +479,7 @@ class Listeners(discord.Cog):
         if (datetime.datetime.now().weekday() == 6) and (
             datetime.datetime.now().hour == 19
         ):
-            async with aiosqlite.connect("main.db") as db:
+            async with aiosqlite.connect(DB["main"]) as db:
                 await db.execute(
                     "CREATE TABLE IF NOT EXISTS stats (id INTEGER PRIMARY KEY, name TEXT, last INTEGER, now INTEGER)"
                 )
@@ -573,7 +572,7 @@ Joins last week: **{join_stats[2]}**
             description=f"{member.mention} is the **{guild_count}**{guild_c_suffix} member!",
             color=self.bot.color(),
         ).set_thumbnail(url=member.display_avatar.url)
-        async with aiosqlite.connect("main.db") as db:
+        async with aiosqlite.connect(DB["main"]) as db:
             await db.execute(
                 "CREATE TABLE IF NOT EXISTS stats (id INTEGER PRIMARY KEY, name TEXT, last INTEGER, now INTEGER)"
             )

@@ -17,9 +17,10 @@ from discord.ext import commands, tasks
 from discord.ext.pages import Paginator, Page
 import pymongo
 from exceptions import UserVABanned, UserNotVA
-from main import ClearBot, get_airports
+from main import get_airports
 from PIL import Image, ImageFont
 from pilmoji import Pilmoji
+from bot import ClearBot, DB
 
 PROJECTION_TYPES = [
     "airy",
@@ -110,7 +111,7 @@ PROJECTION_TYPES = [
 
 
 async def get_aircraft(ctx: discord.AutocompleteContext):
-    async with aiosqlite.connect("va.db") as db:
+    async with aiosqlite.connect(DB["va"]) as db:
         cur = await db.execute("SELECT icao FROM aircraft")
         aircraft = await cur.fetchall()
         aircraft = [aircraft[0] for aircraft in aircraft]
@@ -121,7 +122,7 @@ async def get_aircraft(ctx: discord.AutocompleteContext):
 def is_allowed_check():
     def predicate(ctx: discord.ApplicationContext):
         if isinstance(ctx.author, discord.Member | discord.User):
-            db = sqlite3.connect("va.db")
+            db = sqlite3.connect(DB["va"])
             cur = db.execute(
                 "SELECT is_ban FROM users WHERE user_id=?", (str(ctx.author.id),)
             )
@@ -213,7 +214,7 @@ class VAReportModal(discord.ui.Modal):
         if not interaction.user:
             return
 
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute(
                 "SELECT id FROM flights WHERE user_id=?", (str(interaction.user.id),)
             )
@@ -318,7 +319,7 @@ class VAFlightSelectView(discord.ui.View):
         await interaction.response.edit_message(
             embed=discord.Embed(title="Loading...", color=self.bot.color()), files=[]
         )
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cursor = await db.execute(
                 "SELECT * FROM flights WHERE id=?",
                 (int(select.values[0]),),
@@ -593,7 +594,7 @@ class VACommands(discord.Cog):
             )
             data = (title[0], title[3], title[6])
 
-            async with aiosqlite.connect("va.db") as db:
+            async with aiosqlite.connect(DB["va"]) as db:
                 cur = await db.execute(
                     "SELECT id FROM flights WHERE user_id=? AND is_completed=0 AND destination=? AND aircraft=?",
                     data,
@@ -672,13 +673,13 @@ The ClearFly Team
                         await user_dm.send(embed=user_embed)
                 except discord.Forbidden:
                     raise
-                async with aiosqlite.connect("va.db") as db:
+                async with aiosqlite.connect(DB["va"]) as db:
                     await db.execute("DELETE FROM users WHERE user_id=?", (user[1],))
                     await db.commit()
 
     @tasks.loop(minutes=10)
     async def completed_flight_check(self):
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute("SELECT * FROM flights WHERE is_completed=0")
             flights = await cur.fetchall()
 
@@ -821,7 +822,7 @@ Your flight will be cancelled if you fail to do so <t:{int(flight[6])+TOO_LATE}:
                 await ctx.respond(embed=embed)
                 return
 
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute("SELECT icao FROM aircraft")
             ac_list = await cur.fetchall()
             ac_list = [craft[0] for craft in ac_list]
@@ -867,7 +868,7 @@ Your flight will be cancelled if you fail to do so <t:{int(flight[6])+TOO_LATE}:
         embed.set_author(
             name=f"Filed by {ctx.author.name}", icon_url=ctx.author.display_avatar.url
         )
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute(
                 "SELECT is_trial FROM users WHERE user_id=?", (str(ctx.author.id),)
             )
@@ -911,7 +912,7 @@ Your flight will be cancelled if you fail to do so <t:{int(flight[6])+TOO_LATE}:
             if not metar:
                 metar = "No METAR found"
 
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute("SELECT * FROM aircraft WHERE icao=?", (aircraft,))
             aircraft_data = await cur.fetchone()
             if not aircraft_data:
@@ -1038,7 +1039,7 @@ Your flight will be cancelled if you fail to do so <t:{int(flight[6])+TOO_LATE}:
             "incident": "",
         }
 
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             await db.execute(
                 "INSERT INTO flights (user_id, flight_number, aircraft, origin, destination, filed_at, is_completed, divert, incident) VALUES (:user_id, :flight_number, :aircraft, :origin, :destination, :filed_at, :is_completed, :divert, :incident)",
                 flight,
@@ -1055,7 +1056,7 @@ Your flight will be cancelled if you fail to do so <t:{int(flight[6])+TOO_LATE}:
     async def va_complete(self, ctx: discord.ApplicationContext):
         await ctx.defer()
 
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute(
                 "SELECT id FROM flights WHERE user_id=? AND is_completed=0",
                 (str(ctx.author.id),),
@@ -1103,7 +1104,7 @@ Destination: **{flight_id2[5]}**
     async def va_cancel(self, ctx: discord.ApplicationContext):
         await ctx.defer()
 
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute(
                 "SELECT * FROM flights WHERE user_id=?", (str(ctx.author.id),)
             )
@@ -1148,7 +1149,7 @@ Destination: **{flight_id2[5]}**
     async def va_divert(self, ctx: discord.ApplicationContext, airport):
         await ctx.defer()
 
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute(
                 "SELECT * FROM flights WHERE user_id=?", (str(ctx.author.id),)
             )
@@ -1188,7 +1189,7 @@ Destination: **{flight_id2[5]}**
     @commands.cooldown(1, 5, commands.BucketType.user)
     @is_allowed_check()
     async def va_report(self, ctx: discord.ApplicationContext):
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute(
                 "SELECT * FROM flights WHERE user_id=?", (str(ctx.author.id),)
             )
@@ -1229,7 +1230,7 @@ Destination: **{flight_id2[5]}**
         if not user:
             user = ctx.author
 
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute(
                 "SELECT * FROM reports WHERE user_id=?", (str(user.id),)
             )
@@ -1291,7 +1292,7 @@ Destination: **{flight_id2[5]}**
         airports_data = self.bot.airports
 
         flights = []
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cursor = await db.execute(
                 "SELECT * FROM flights WHERE user_id=?", (str(user.id),)
             )
@@ -1375,7 +1376,7 @@ Destination: **{flight_id2[5]}**
             )
             return
 
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             if version == "General Aviation":
                 cursor = await db.execute(
                     f"SELECT origin, destination FROM flights WHERE user_id=? AND aircraft IN {await self.bot.va.get_aircraft_from_type('GA', 'IN_SQL')}",
@@ -1580,7 +1581,7 @@ Destination: **{flight_id2[5]}**
     async def va_lb(self, ctx: discord.ApplicationContext):
         await ctx.defer()
 
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cursor = await db.execute(
                 "SELECT user_id, COUNT(*) as flight_count FROM flights GROUP BY user_id ORDER BY flight_count DESC"
             )
@@ -1635,7 +1636,7 @@ Destination: **{flight_id2[5]}**
     async def va_stats(self, ctx: discord.ApplicationContext):
         await ctx.defer()
 
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute("SELECT COUNT(*) FROM flights")
             total_flights = await cur.fetchone()
             if not total_flights:
@@ -1816,7 +1817,7 @@ Most used aircraft: **{most_used_aircraft}**
     ):
         await ctx.defer()
 
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute("SELECT icao FROM aircraft")
             ac_list = await cur.fetchall()
             ac_list = [craft[0] for craft in ac_list]
@@ -1935,7 +1936,7 @@ The distance between airports is **{distance}** with estimated flight time being
         crz_speed: int,
         is_official: bool,
     ):
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute("SELECT icao FROM aircraft")
             aircraft = await cur.fetchall()
             aircraft = [aircraft[0] for aircraft in aircraft]
@@ -1975,7 +1976,7 @@ The distance between airports is **{distance}** with estimated flight time being
     @commands.cooldown(1, 10, commands.BucketType.user)
     @commands.has_role(965422406036488282)
     async def remove_ac(self, ctx: discord.ApplicationContext, icao: str):
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute("SELECT icao FROM aircraft")
             aircraft = await cur.fetchall()
             aircraft = [aircraft[0] for aircraft in aircraft]
@@ -2003,7 +2004,7 @@ The distance between airports is **{distance}** with estimated flight time being
     @commands.cooldown(1, 10, commands.BucketType.user)
     @commands.has_role(965422406036488282)
     async def list_ac(self, ctx: discord.ApplicationContext):
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             cur = await db.execute("SELECT * FROM aircraft")
             aircraft = await cur.fetchall()
 
@@ -2030,7 +2031,7 @@ The distance between airports is **{distance}** with estimated flight time being
             )
             await ctx.respond(embed=embed)
             return
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             await db.execute(
                 "UPDATE users SET is_ban=1 WHERE user_id=?", (str(user.id),)
             )
@@ -2053,7 +2054,7 @@ The distance between airports is **{distance}** with estimated flight time being
             )
             await ctx.respond(embed=embed)
             return
-        async with aiosqlite.connect("va.db") as db:
+        async with aiosqlite.connect(DB["va"]) as db:
             await db.execute(
                 "UPDATE users SET is_ban=0 WHERE user_id=?", (str(user.id),)
             )

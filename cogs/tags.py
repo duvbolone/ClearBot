@@ -3,11 +3,9 @@ import aiosqlite
 import time
 from discord import option
 from discord.ext import commands
-from dotenv import load_dotenv
-from main import ClearBot
 from discord.ext.pages import Page, Paginator
 
-load_dotenv()
+from bot import ClearBot, DB
 
 
 class TagCommands(discord.Cog):
@@ -23,7 +21,7 @@ class TagCommands(discord.Cog):
         print("\033[34m|\033[0m \033[96;1mTags\033[0;36m cog loaded sucessfully\033[0m")
 
     async def get_tags(self, ctx: discord.AutocompleteContext):
-        async with aiosqlite.connect("main.db") as db:
+        async with aiosqlite.connect(DB["main"]) as db:
             cursor = await db.execute("SELECT name FROM tags")
             rows = await cursor.fetchall()
             tags = [row[0] for row in rows]
@@ -47,12 +45,12 @@ class TagCommands(discord.Cog):
     ):
         tags = []
         await ctx.defer()
-        async with aiosqlite.connect("main.db") as db:
+        async with aiosqlite.connect(DB["main"]) as db:
             cursor = await db.execute("SELECT name FROM tags")
             rows = await cursor.fetchall()
             tags = [row[0] for row in rows]
         if tag in tags:
-            async with aiosqlite.connect("main.db") as db:
+            async with aiosqlite.connect(DB["main"]) as db:
                 curs = await db.cursor()
                 output = await curs.execute("SELECT * FROM tags WHERE name=?", (tag,))
                 output = await output.fetchone()
@@ -99,7 +97,7 @@ Didn't found {tag}.
     async def listtags(self, ctx: discord.ApplicationContext):
         await ctx.defer()
         tags = []
-        async with aiosqlite.connect("main.db") as db:
+        async with aiosqlite.connect(DB["main"]) as db:
             cursor = await db.execute("SELECT name FROM tags")
             rows = await cursor.fetchall()
             tags = [row[0] for row in rows]
@@ -158,7 +156,7 @@ Didn't found {tag}.
                     "created_at": str(time.time()),
                     "edited_at": str(time.time()),
                 }
-                async with aiosqlite.connect("main.db") as db:
+                async with aiosqlite.connect(DB["main"]) as db:
                     cur = await db.cursor()
                     await cur.execute(
                         "INSERT INTO tags (name, value, author, edited_at, created_at) VALUES (:name, :value, :author, :edited_at, :created_at)",
@@ -200,7 +198,7 @@ Didn't found {tag}.
 
             async def callback(self, interaction: discord.Interaction):
                 tags = []
-                async with aiosqlite.connect("main.db") as db:
+                async with aiosqlite.connect(DB["main"]) as db:
                     cursor = await db.execute("SELECT name FROM tags")
                     rows = await cursor.fetchall()
                     tags = [row[0] for row in rows]
@@ -211,7 +209,7 @@ Didn't found {tag}.
                         "edited_at": str(time.time()),
                         "old_name": edit,
                     }
-                    async with aiosqlite.connect("main.db") as db:
+                    async with aiosqlite.connect(DB["main"]) as db:
                         cursor = await db.cursor()
                         await cursor.execute(
                             "UPDATE tags SET name=:name, value=:value, edited_at=:edited_at WHERE name=:old_name",
@@ -234,7 +232,7 @@ Didn't found {edit}.
                     )
                     await interaction.response.send_message(embed=embed)
 
-        async with aiosqlite.connect("main.db") as db:
+        async with aiosqlite.connect(DB["main"]) as db:
             curs = await db.cursor()
             edit_tag = await curs.execute("SELECT * FROM tags WHERE name=?", (edit,))
             edit_tag = await edit_tag.fetchone()
@@ -267,7 +265,7 @@ Didn't found {edit}.
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def delete(self, ctx: discord.ApplicationContext, tag: str):
         await ctx.defer()
-        async with aiosqlite.connect("main.db") as db:
+        async with aiosqlite.connect(DB["main"]) as db:
             curs = await db.cursor()
             del_tag = await curs.execute("SELECT * FROM tags WHERE name=?", (tag,))
             del_tag = await del_tag.fetchone()
@@ -279,7 +277,7 @@ Didn't found {edit}.
 
         authroles = [role.id for role in ctx.author.roles]
         if int(del_tag[3]) == ctx.author.id:
-            async with aiosqlite.connect("main.db") as db:
+            async with aiosqlite.connect(DB["main"]) as db:
                 cursor = await db.cursor()
                 await cursor.execute("DELETE FROM tags WHERE name=?", (tag,))
                 await db.commit()
@@ -287,7 +285,7 @@ Didn't found {edit}.
                 title=f"Tag `{tag}` deleted successfully", colour=self.bot.color()
             )
         elif self.bot.roles.get("admin", 0) in authroles:
-            async with aiosqlite.connect("main.db") as db:
+            async with aiosqlite.connect(DB["main"]) as db:
                 cursor = await db.cursor()
                 await cursor.execute("DELETE FROM tags WHERE name=?", (tag,))
                 await db.commit()

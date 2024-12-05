@@ -12,8 +12,6 @@ import requests
 from exceptions import UserNotVA, UserVABanned
 from discord.ext import commands
 from discord.ext.pages import PaginatorButton
-from dotenv import load_dotenv
-
 from bot import ClearBot, RulesView, VAStartView
 
 
@@ -30,11 +28,10 @@ async def get_airports(ctx: discord.AutocompleteContext):
 
 
 roles = bot.roles
-load_dotenv()
-
 
 @bot.listen()
 async def on_ready():
+    os.makedirs("database", exists_ok=True)
     gc.collect()
     if bot.user:
         bot.bot_id = bot.user.id
