@@ -31,7 +31,7 @@ roles = bot.roles
 
 @bot.listen()
 async def on_ready():
-    os.makedirs("database", exists_ok=True)
+    os.makedirs("database", exist_ok=True)
     gc.collect()
     if bot.user:
         bot.bot_id = bot.user.id

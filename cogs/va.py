@@ -21,6 +21,7 @@ from main import get_airports
 from PIL import Image, ImageFont
 from pilmoji import Pilmoji
 from bot import ClearBot, DB
+import kaleido
 
 PROJECTION_TYPES = [
     "airy",
