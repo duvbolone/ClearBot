@@ -1077,8 +1077,11 @@ Joins last week: **{join_stats[2]}**
             loc += int(len(f.readlines()))
             f.close()
         if platform.system().lower() == "linux":
-            temp = os.popen("vcgencmd measure_temp").readline()
-            temp = temp.replace("temp=", "").replace("'", "°")
+            try:
+                with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+                    temp = str(float(f.readline().strip()) / 1000) + " °C"
+            except FileNotFoundError:
+                temp = "N/A"
         else:
             temp = "N/A"
         cogs_list = "\n".join(self.bot.cog_list)
