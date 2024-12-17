@@ -474,11 +474,9 @@ class Listeners(discord.Cog):
                     )
                     await db.commit()
 
-    @tasks.loop(hours=1)
+    @tasks.loop(time=datetime.time(hour=19, minute=0))
     async def join_stats_loop(self):
-        if (datetime.datetime.now().weekday() == 6) and (
-            datetime.datetime.now().hour == 19
-        ):
+        if (datetime.datetime.now().weekday() == 6) and ():
             async with aiosqlite.connect(DB["main"]) as db:
                 await db.execute(
                     "CREATE TABLE IF NOT EXISTS stats (id INTEGER PRIMARY KEY, name TEXT, last INTEGER, now INTEGER)"
@@ -491,24 +489,22 @@ class Listeners(discord.Cog):
                 if int(join_stats[2]) == 0:
                     join_pphrase = ""
                 else:
-                    join_perc = abs(
-                        round(
-                            (
-                                (int(join_stats[3]) - int(join_stats[2]))
-                                / int(join_stats[2])
-                            )
-                            * 100,
-                            2,
-                        )
-                    )
+                    ma = max(int(join_stats[3]), int(join_stats[2]))
+                    mi = min(int(join_stats[3]), int(join_stats[2]))
+
+                    join_perc = abs(round(mi / ma * 100, 2))
+
                     if int(join_stats[2]) < int(join_stats[3]):
                         join_pphrase = (
                             f"There was a **{join_perc}**% increase in joins!"
                         )
+                    elif join_perc == 100:
+                        join_pphrase = ""
                     else:
                         join_pphrase = (
                             f"There was a **{join_perc}**% decrease in joins..."
                         )
+
                 embed = discord.Embed(
                     title="Weekly ClearFly Join Report",
                     colour=self.bot.color(),
